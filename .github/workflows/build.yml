@@ -1,0 +1,31 @@
+name: Build APK
+on:
+  push:
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Unzip project
+        run: |
+          for z in *.zip; do mkdir "x_${z%.zip}"; unzip -q "$z" -d "x_${z%.zip}"; done
+          best=$(grep -l "wa-skin" x_*/WinampApp/app/src/main/assets/index.html | head -1 || true)
+          src=$(echo "$best" | cut -d/ -f1)
+          if [ -z "$src" ]; then src=$(ls -d x_* | head -1); fi
+          cp -r "$src/WinampApp" WinampApp
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.7
+      - name: Build
+        working-directory: WinampApp
+        run: gradle assembleDebug --no-daemon
+      - uses: actions/upload-artifact@v4
+        with:
+          name: winamp-apk
+          path: WinampApp/app/build/outputs/apk/debug/app-debug.apk
